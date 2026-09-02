@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_spx_reconciliation_overview_user,spx.bank.reconciliation.overview user,model_spx_bank_reconciliation_overview,account.group_account_user,1,1,1,1
+access_spx_reconciliation_overview_line_user,spx.bank.reconciliation.overview.line user,model_spx_bank_reconciliation_overview_line,account.group_account_user,1,1,1,1
+access_spx_reconciliation_overview_system,spx.bank.reconciliation.overview administrator,model_spx_bank_reconciliation_overview,base.group_system,1,1,1,1
+access_spx_reconciliation_overview_line_system,spx.bank.reconciliation.overview.line administrator,model_spx_bank_reconciliation_overview_line,base.group_system,1,1,1,1
