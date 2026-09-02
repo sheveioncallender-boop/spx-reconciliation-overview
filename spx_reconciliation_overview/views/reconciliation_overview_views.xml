@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="spx_reconciliation_overview_view_list" model="ir.ui.view">
+        <field name="name">spx.bank.reconciliation.overview.list</field>
+        <field name="model">spx.bank.reconciliation.overview</field>
+        <field name="arch" type="xml">
+            <list string="Reconciliation Overview"
+                  decoration-success="reconciliation_state == 'reconciled'"
+                  decoration-warning="reconciliation_state == 'needs_matching'"
+                  decoration-danger="reconciliation_state == 'difference'">
+                <field name="name"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="journal_id"/>
+                <field name="statement_id" optional="show"/>
+                <field name="statement_date"/>
+                <field name="statement_ending_balance" sum="Statement Total"/>
+                <field name="gl_system_balance" optional="show" sum="G/L Total"/>
+                <field name="difference" sum="Difference"/>
+                <field name="unmatched_bank_count" optional="show"/>
+                <field name="reconciliation_state" widget="badge"
+                       decoration-success="reconciliation_state == 'reconciled'"
+                       decoration-warning="reconciliation_state == 'needs_matching'"
+                       decoration-danger="reconciliation_state == 'difference'"
+                       decoration-muted="reconciliation_state == 'not_refreshed'"/>
+                <field name="data_last_refreshed" optional="hide"/>
+                <field name="currency_id" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="spx_reconciliation_overview_view_search" model="ir.ui.view">
+        <field name="name">spx.bank.reconciliation.overview.search</field>
+        <field name="model">spx.bank.reconciliation.overview</field>
+        <field name="arch" type="xml">
+            <search string="Search Reconciliation Worksheets">
+                <field name="name"/>
+                <field name="journal_id"/>
+                <field name="statement_id"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <filter name="needs_attention" string="Needs Attention"
+                        domain="[('reconciliation_state', 'in', ('difference', 'needs_matching'))]"/>
+                <filter name="reconciled" string="Reconciled"
+                        domain="[('reconciliation_state', '=', 'reconciled')]"/>
+                <separator/>
+                <filter name="filter_statement_date" date="statement_date"/>
+                <group>
+                    <filter name="group_journal" string="Bank Account" context="{'group_by': 'journal_id'}"/>
+                    <filter name="group_status" string="Status" context="{'group_by': 'reconciliation_state'}"/>
+                    <filter name="group_company" string="Company" context="{'group_by': 'company_id'}" groups="base.group_multi_company"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="spx_reconciliation_overview_line_view_list" model="ir.ui.view">
+        <field name="name">spx.bank.reconciliation.overview.line.list</field>
+        <field name="model">spx.bank.reconciliation.overview.line</field>
+        <field name="arch" type="xml">
+            <list string="Reconciliation Transactions" create="false" edit="false" delete="false"
+                  decoration-success="native_status == 'bank_cleared'"
+                  decoration-warning="native_status in ('bank_unmatched', 'outstanding_receipt', 'outstanding_payment')">
+                <field name="is_cleared" widget="boolean_toggle"/>
+                <field name="reference"/>
+                <field name="deposit_amount" sum="Deposits"/>
+                <field name="check_amount" sum="Checks"/>
+                <field name="date"/>
+                <field name="partner_id"/>
+                <field name="description" optional="show"/>
+                <field name="native_status" widget="badge"
+                       decoration-success="native_status == 'bank_cleared'"
+                       decoration-warning="native_status in ('outstanding_receipt', 'outstanding_payment')"
+                       decoration-danger="native_status == 'bank_unmatched'"/>
+                <field name="source_type" optional="hide"/>
+                <field name="statement_id" optional="hide"/>
+                <field name="currency_id" column_invisible="True"/>
+                <button name="action_open_source" type="object" string="Open" icon="fa-external-link"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="spx_reconciliation_overview_line_view_form" model="ir.ui.view">
+        <field name="name">spx.bank.reconciliation.overview.line.form</field>
+        <field name="model">spx.bank.reconciliation.overview.line</field>
+        <field name="arch" type="xml">
+            <form string="Reconciliation Transaction" create="false" edit="false" delete="false">
+                <header>
+                    <button name="action_open_source" type="object" string="Open Native Source" class="oe_highlight"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="overview_id"/>
+                            <field name="reference"/>
+                            <field name="date"/>
+                            <field name="partner_id"/>
+                            <field name="description"/>
+                        </group>
+                        <group>
+                            <field name="transaction_type"/>
+                            <field name="amount"/>
+                            <field name="is_cleared"/>
+                            <field name="native_status" widget="badge"/>
+                            <field name="source_type"/>
+                        </group>
+                    </group>
+                    <group string="Native Odoo References">
+                        <field name="bank_statement_line_id"/>
+                        <field name="statement_id"/>
+                        <field name="payment_id"/>
+                        <field name="move_line_id"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="spx_reconciliation_overview_view_form" model="ir.ui.view">
+        <field name="name">spx.bank.reconciliation.overview.form</field>
+        <field name="model">spx.bank.reconciliation.overview</field>
+        <field name="arch" type="xml">
+            <form string="Reconciliation Overview">
+                <header>
+                    <button name="action_refresh" type="object" string="Refresh from Odoo" class="oe_highlight" icon="fa-refresh"/>
+                    <button name="action_open_native_reconciliation" type="object" string="Open Odoo Reconciliation" icon="fa-random"/>
+                    <button name="action_find_missing_transactions" type="object" string="Find Missing Transactions" icon="fa-search"/>
+                    <field name="reconciliation_state" widget="statusbar"
+                           statusbar_visible="not_refreshed,difference,needs_matching,reconciled"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Reconciled" bg_color="text-bg-success" invisible="not is_reconciled"/>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_lines" type="object" class="oe_stat_button" icon="fa-list">
+                            <field name="line_count" widget="statinfo" string="Transactions"/>
+                        </button>
+                        <button name="action_find_missing_transactions" type="object" class="oe_stat_button" icon="fa-exclamation-triangle">
+                            <field name="unmatched_bank_count" widget="statinfo" string="Unmatched Bank"/>
+                        </button>
+                    </div>
+
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+
+                    <group>
+                        <group string="Bank Statement">
+                            <field name="company_id" groups="base.group_multi_company" options="{'no_create': True}"/>
+                            <field name="journal_id" options="{'no_create': True, 'no_open': True}"/>
+                            <field name="statement_id" options="{'no_create': True}"/>
+                            <field name="date_from"/>
+                            <field name="statement_date"/>
+                            <field name="statement_ending_balance"/>
+                        </group>
+                        <group string="Odoo Accounting Position">
+                            <field name="currency_id" options="{'no_create': True}"/>
+                            <field name="data_last_refreshed" readonly="1"/>
+                            <field name="bank_gl_balance" readonly="1"/>
+                            <field name="gl_system_balance" readonly="1"/>
+                            <field name="outstanding_count" readonly="1"/>
+                            <field name="unmatched_bank_count" readonly="1"/>
+                        </group>
+                    </group>
+
+                    <separator string="Checks, Deposits and Bank Transactions"/>
+                    <div class="alert alert-info" role="alert">
+                        This is a reporting worksheet. Bank-cleared status and accounting amounts come from Odoo; final matching and posting remain in Odoo's native reconciliation flow.
+                    </div>
+                    <field name="line_ids" nolabel="1">
+                        <list string="Transactions" create="false" edit="false" delete="false"
+                              decoration-success="native_status == 'bank_cleared'"
+                              decoration-warning="native_status in ('outstanding_receipt', 'outstanding_payment')"
+                              decoration-danger="native_status == 'bank_unmatched'">
+                            <field name="is_cleared" widget="boolean_toggle"/>
+                            <field name="reference"/>
+                            <field name="deposit_amount" sum="Deposits"/>
+                            <field name="check_amount" sum="Checks"/>
+                            <field name="date"/>
+                            <field name="partner_id"/>
+                            <field name="description" optional="show"/>
+                            <field name="native_status" widget="badge"
+                                   decoration-success="native_status == 'bank_cleared'"
+                                   decoration-warning="native_status in ('outstanding_receipt', 'outstanding_payment')"
+                                   decoration-danger="native_status == 'bank_unmatched'"/>
+                            <field name="source_type" optional="hide"/>
+                            <field name="currency_id" column_invisible="True"/>
+                            <button name="action_open_source" type="object" string="Open" icon="fa-external-link"/>
+                        </list>
+                    </field>
+
+                    <group col="2" class="mt-4">
+                        <group string="Statement Adjustments">
+                            <separator string="Interest Income"/>
+                            <field name="interest_income"/>
+                            <field name="interest_date"/>
+                            <field name="interest_account_id" options="{'no_create': True}"/>
+                            <button name="action_prepare_interest_transaction" type="object"
+                                    string="Prepare Native Interest Transaction" class="btn-secondary" icon="fa-external-link"/>
+                            <separator string="Service Charges"/>
+                            <field name="service_charges"/>
+                            <field name="service_charge_date"/>
+                            <field name="service_charge_account_id" options="{'no_create': True}"/>
+                            <button name="action_prepare_charge_transaction" type="object"
+                                    string="Prepare Native Charge Transaction" class="btn-secondary" icon="fa-external-link"/>
+                        </group>
+                        <group string="Reconciliation Summary">
+                            <field name="cleared_deposit_count" readonly="1"/>
+                            <field name="cleared_deposit_amount" readonly="1"/>
+                            <field name="cleared_check_count" readonly="1"/>
+                            <field name="cleared_check_amount" readonly="1"/>
+                            <separator string="Statement to G/L Comparison"/>
+                            <field name="statement_ending_balance" readonly="1"/>
+                            <field name="outstanding_checks" readonly="1"/>
+                            <field name="deposits_in_transit" readonly="1"/>
+                            <field name="adjusted_bank_balance" readonly="1"/>
+                            <field name="adjusted_gl_balance" readonly="1"/>
+                            <field name="difference" readonly="1" class="oe_subtotal_footer_separator"/>
+                        </group>
+                    </group>
+
+                    <field name="is_reconciled" invisible="1"/>
+                    <field name="active" invisible="1"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="spx_reconciliation_overview_action" model="ir.actions.act_window">
+        <field name="name">Reconciliation Overview</field>
+        <field name="res_model">spx.bank.reconciliation.overview</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="spx_reconciliation_overview_view_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Create a clear bank reconciliation worksheet</p>
+            <p>Select a bank account and statement date, then refresh the worksheet from Odoo's native accounting records.</p>
+        </field>
+    </record>
+
+    <menuitem id="spx_reconciliation_overview_menu"
+              name="Reconciliation Overview"
+              parent="account.menu_finance"
+              action="spx_reconciliation_overview_action"
+              sequence="45"
+              groups="account.group_account_user"/>
+</odoo>
